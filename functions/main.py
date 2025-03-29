@@ -1,16 +1,13 @@
 # firebase function libraries
 from firebase_functions import https_fn
-from firebase_admin import initialize_app, credentials
+from firebase_admin import initialize_app, credentials, firestore
 
 # genai libraries
 from google import genai
 
-# The Firebase Admin SDK to access Cloud Firestore.
-from firebase_admin import initialize_app, firestore
-
 # general imports
 from flask import jsonify
-from datetime import datetime
+from prompts import get_critique_prompt
 
 creds = credentials.Certificate("./service-account.json")
 initialize_app(creds)
@@ -42,20 +39,11 @@ def _get_transactions():
     return dicts
 
 @https_fn.on_request()
-def get_transactions(req: https_fn.Request) -> https_fn.Response:
-    return jsonify(_get_transactions())
+def get_critique(req: https_fn.Request) -> https_fn.Response:
+    prompt = get_critique_prompt(_get_transactions())
+    response = get_completions(prompt)
+    return response.text
 
 @https_fn.on_request()
-def add_transaction(req: https_fn.Request) -> https_fn.Response:
-    data = req.get_json()
-    # i.e March 22, 2025 at 8:15:00 AM UTC-4
-    date_format = "%B %d, %Y at %I:%M:%S %p UTC%z"
-    record = {
-        "datetime": firestore.TimeStamp.FromDateTime(datetime.strptime(data["datetime"], date_format)),
-        "location": firestore.GeoPoint(data["location"][0], data["location"][1]),
-        "merchant": data["merchant"],
-        "status": data["status"],
-        "products": data["products"]
-    }
-    doc_ref = fsdb.collection("transactions").add(record)
-    return https_fn.Response(f"Added {doc_ref.id} to transactions") 
+def get_transactions(req: https_fn.Request) -> https_fn.Response:
+    return jsonify(_get_transactions())
