@@ -10,8 +10,8 @@ if EMULATED:
   os.environ['FIRESTORE_EMULATOR_HOST'] = '127.0.0.1:8080'
 
 creds = credentials.Certificate("./service-account.json")
-initialize_app(creds)
-fsdb = firestore.client()
+app = initialize_app(creds)
+fsdb = firestore.client(app)
 
 mockTransactions = [
     {
