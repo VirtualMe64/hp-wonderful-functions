@@ -12,6 +12,8 @@ from firebase_admin import initialize_app, firestore
 from flask import jsonify
 from datetime import datetime
 
+import requests
+
 creds = credentials.Certificate("./service-account.json")
 initialize_app(creds)
 fsdb = firestore.client()
@@ -58,4 +60,157 @@ def add_transaction(req: https_fn.Request) -> https_fn.Response:
         "products": data["products"]
     }
     doc_ref = fsdb.collection("transactions").add(record)
-    return https_fn.Response(f"Added {doc_ref.id} to transactions") 
+    return https_fn.Response(f"Added {doc_ref.id} to transactions")
+
+def give_recommendation(transaction: dict) -> dict:
+    # first check if the item can be easily made at home
+    
+    # see if the merchant is doordash
+    if "doordash" in transaction["merchant"].lower():
+        result = find_cheaper_store(transaction)
+        
+        # write a recommendation based on the result
+        prompt = f"Write a short message describing the recommendation to go to this close restaurant rather than ordering from doordash {result}"
+        response = get_completions(prompt)
+        recommendation = response.text
+        return {"recommendation": recommendation, "address": get_address(geo_to_coords(result["geometry"]["location"]))}
+    
+    # determine if the merchant is a chain or not
+    prompt = f"Is the merchant {transaction['merchant']} a chain? (respond with only yes or no)"
+    response = get_completions(prompt)
+    is_chain = response.text
+    if "yes" in is_chain.lower():
+        # check if item is store brand or not
+        prompt = f"Is the product {product_at_home} a store brand? (respond with only yes or no)"
+        response = get_completions(prompt)
+        is_store_brand = response.text
+        
+        # find a cheaper store
+        result = find_cheaper_store(transaction)
+        
+        # write a recommendation based on the result
+        prompt = f"Write a short message describing the recommendation to buy the product at this cheaper store {result}"
+        if not is_store_brand:
+            prompt += f" or to find a cheaper store brand product"
+        response = get_completions(prompt)
+        recommendation = response.text
+        return {"recommendation": recommendation, "address": get_address(geo_to_coords(result["geometry"]["location"]))}
+    
+    product_at_home = None
+    for product in transaction["products"]:
+        prompt = f"Can the product {product} be easily made at home? (respond with only yes or no)"
+        response = get_completions(prompt)
+        if "yes" in response.text.lower():
+            product_at_home = product
+            break
+        
+    if product_at_home:
+        # list key items that would be needed to buy to make this product
+        prompt = f"What are the key items that would be needed to buy to make the product {product_at_home}? (respond with a comma separated list of words)"
+        response = get_completions(prompt)
+        items_needed = response.text
+        print(items_needed)
+        # find a location that sells the items needed using maps api
+        location = transaction["location"]
+        result = query_maps(items_needed, location)
+        
+        # return the result
+        # write a recommendation based on the result
+        prompt = f"Write a short message describing the recommendation for them to make the product at home by buying the items at the following location instead of buying the completed product {result}"
+        response = get_completions(prompt)
+        recommendation = response.text
+        return {"recommendation": recommendation, "address": get_address(geo_to_coords(result["geometry"]["location"]))}
+    
+    # determine if the 
+    return {"recommendation": ""}
+
+
+
+def geo_to_coords(geo: str) -> tuple:
+    return [geo["lat"], geo["lng"]]
+    
+def query_maps(items_needed: str, location: tuple) -> str:
+    # get merchant category
+    prompt = f"What kind of store sells the items {items_needed}? respond with a couple comma separated words"
+    response = get_completions(prompt)
+    merchant_category = response.text
+    print(merchant_category)
+    maps_api_key = "AIzaSyAD2DJZyMFGL9yWbYPSZWOqKVDzHVruh4M"
+    maps_endpoint = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?" + \
+        f"location={location[0]},{location[1]}" + \
+        f"&radius=400" + \
+        f"&keyword={merchant_category}" + \
+        f"&key={maps_api_key}"
+    maps_endpoint = maps_endpoint.replace(" ", "")
+    
+    # get response from maps api
+    response = requests.get(maps_endpoint)
+    responseJson = response.json()
+    results = responseJson["results"]
+    
+    # return first result
+    return results[0]
+    
+    
+# on new transaction, analyze for cheaper options
+def find_cheaper_store(transaction: dict) -> dict:
+    # get name of merchant
+    merchant = transaction["merchant"]
+    location = transaction["location"] # lat, long
+    
+    # get merchant category e.g. "grocery", "restaurant", "shopping", "gas", ... using gemini
+    prompt = f"What is the category of the merchant {merchant} in one word?"
+    response = get_completions(prompt)
+    merchant_category = response.text
+    
+    # get products
+    products = transaction["products"]
+    # get product categories
+    prompt = f"What is the category of the product {products} in one word? make a comma separated list of words"
+    response = get_completions(prompt)
+    product_categories = response.text
+    
+    # use maps api to find stores in the area that sell the products
+    maps_api_key = "AIzaSyAD2DJZyMFGL9yWbYPSZWOqKVDzHVruh4M"
+    maps_endpoint = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?" + \
+        f"location={location[0]},{location[1]}" + \
+        f"&radius=400" + \
+        f"&keyword={merchant_category},{product_categories}" + \
+        f"&key={maps_api_key}"
+    maps_endpoint = maps_endpoint.replace(" ", "")
+    
+    # get response from maps api
+    response = requests.get(maps_endpoint)
+    responseJson = response.json()
+    results = responseJson["results"]
+    
+    # for each result location and product use doordash api to find the pickup pricing for each product
+    locations = []
+    for result in results:
+        # get address of result from lat, long
+        coords = result["geometry"]["location"]
+        coords = [coords["lat"], coords["lng"]]
+        
+        # convert coords to address
+        address = get_address(coords)
+        
+        locations.append(f"{result['name']} at {address} with rating {result['rating']} and {result['user_ratings_total']} reviews")
+        
+    # use llm to choose cheapest location, return just a number index
+    prompt = f"Guess which option might be the cheapest, only return the index of the location the only output should be a number: {locations}"
+    response = get_completions(prompt)
+    cheapest_location = int(response.text)
+    
+    return results[cheapest_location]
+        
+        
+def get_address(coords: dict) -> str:
+    # use maps api to get address
+    maps_api_key = "AIzaSyAD2DJZyMFGL9yWbYPSZWOqKVDzHVruh4M"
+    maps_endpoint = f"https://maps.googleapis.com/maps/api/geocode/json?" + \
+        f"latlng={coords[0]},{coords[1]}" + \
+        f"&key={maps_api_key}"
+    response = requests.get(maps_endpoint)
+    responseJson = response.json()
+    return responseJson["results"][0]["formatted_address"]
+    
