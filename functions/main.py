@@ -9,13 +9,14 @@ from google.genai import types
 # general imports
 from flask import jsonify
 from prompts import get_critique_prompt, get_chat_prompt
+from secret import GENAI_API_KEY
 
 import requests
 
 creds = credentials.Certificate("./service-account.json")
 initialize_app(creds)
 fsdb = firestore.client()
-genai_client = genai.Client(api_key="AIzaSyDTmJn0kWr5ukWkxeWgMHZn_GY4il4xl1U")
+genai_client = genai.Client(api_key=GENAI_API_KEY)
 
 HARM_CATEGORY_UNSPECIFIED = 'HARM_CATEGORY_UNSPECIFIED'
 HARM_CATEGORY_HATE_SPEECH = 'HARM_CATEGORY_HATE_SPEECH'
