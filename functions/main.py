@@ -9,7 +9,7 @@ from google.genai import types
 # general imports
 from flask import jsonify
 from prompts import get_critique_prompt, get_chat_prompt
-from secret import GENAI_API_KEY
+from secret import GENAI_API_KEY, PHONE_NUMBER, TEXTBELT_API_KEY
 
 import requests
 
@@ -121,6 +121,11 @@ def give_recommendation_on_transaction_creation(event: firestore_fn.Event) -> ht
     print(recommendation)
     doc_ref = fsdb.collection("transactions").document(transaction_id)
     doc_ref.update({"recommendation": recommendation})
+    
+    # send text message
+    # get exp link from expo/0 in firestore
+    exp_link = fsdb.collection("expo").document("0").get().to_dict()["expolink"]
+    send_text(f"Kevin is very upset about your spending habits, especially on {transaction['merchant']}! {exp_link}")
     
 def kevinify_recommendation(recommendation: str, transaction: dict) -> str:
     prompt = f"Channel the spirit of Kevin O'Leary and deliver a sharp, witty critique of a user's recent spending habits that gives them the following advice, mention the recommended location by name, keep it short and snappy: {recommendation}; they spent money on this transaction: {transaction}"
@@ -276,4 +281,12 @@ def get_address(coords: dict) -> str:
     response = requests.get(maps_endpoint)
     responseJson = response.json()
     return responseJson["results"][0]["formatted_address"]
+
+def send_text(message: str):
+    # send text message
+    resp = requests.post('https://textbelt.com/text', {
+    'phone': PHONE_NUMBER,
+    'message': message,
+    'key': TEXTBELT_API_KEY,
+    })
     

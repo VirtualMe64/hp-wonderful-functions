@@ -1,4 +1,4 @@
-from main import find_cheaper_store, give_recommendation, kevinify_recommendation
+from main import give_recommendation, kevinify_recommendation, send_text
 
 test_transaction = {
     "merchant": "Instacart: morton's steakhouse",
@@ -11,3 +11,5 @@ print(recommendation)
 kevinified_recommendation = kevinify_recommendation(recommendation["recommendation"], test_transaction)
 recommendation["recommendation"] = kevinified_recommendation
 print(recommendation)
+
+send_text("Kevin is very upset about your spending habits!")
