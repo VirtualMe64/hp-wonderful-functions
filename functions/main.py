@@ -70,7 +70,7 @@ def add_transaction(req: https_fn.Request) -> https_fn.Response:
 @firestore_fn.on_document_created(document="transactions/{transaction_id}")
 def give_recommendation_on_transaction_creation(event: firestore_fn.Event) -> https_fn.Response:
     transaction_id = event.params["transaction_id"]
-    doc = event.data.after.to_dict()
+    doc = event.data.to_dict()
     transaction = fsdb.collection("transactions").document(transaction_id).get().to_dict()
     
     recommendation = give_recommendation(transaction)
