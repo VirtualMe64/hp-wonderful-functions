@@ -1,7 +1,7 @@
 import requests
 
-url = "http://127.0.0.1:5001/hp-wonderful/us-central1/get_chat"
-data = {"message": "How do I make a million dollars today?"}
+url = "https://us-central1-hp-wonderful.cloudfunctions.net/get_chat"
+data = {"message": "What stock should I buy?"}
 
 response = requests.post(url, json=data)
 

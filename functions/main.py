@@ -4,6 +4,7 @@ from firebase_admin import initialize_app, credentials, firestore
 
 # genai libraries
 from google import genai
+from google.genai import types
 
 # general imports
 from flask import jsonify
@@ -16,10 +17,41 @@ initialize_app(creds)
 fsdb = firestore.client()
 genai_client = genai.Client(api_key="AIzaSyDTmJn0kWr5ukWkxeWgMHZn_GY4il4xl1U")
 
+HARM_CATEGORY_UNSPECIFIED = 'HARM_CATEGORY_UNSPECIFIED'
+HARM_CATEGORY_HATE_SPEECH = 'HARM_CATEGORY_HATE_SPEECH'
+HARM_CATEGORY_DANGEROUS_CONTENT = 'HARM_CATEGORY_DANGEROUS_CONTENT'
+HARM_CATEGORY_HARASSMENT = 'HARM_CATEGORY_HARASSMENT'
+HARM_CATEGORY_SEXUALLY_EXPLICIT = 'HARM_CATEGORY_SEXUALLY_EXPLICIT'
+HARM_CATEGORY_CIVIC_INTEGRITY = 'HARM_CATEGORY_CIVIC_INTEGRITY'
+
 def get_completions(prompt: str) -> str:
     response = genai_client.models.generate_content(
         model="gemini-1.5-flash-001",
         contents=prompt,
+        config=types.GenerateContentConfig(
+            safety_settings=[
+                types.SafetySetting(
+                    category=HARM_CATEGORY_HATE_SPEECH,
+                    threshold="BLOCK_NONE",
+                ),
+                types.SafetySetting(
+                    category=HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold="BLOCK_NONE",  # Block medium
+                ),
+                types.SafetySetting(
+                    category=HARM_CATEGORY_HARASSMENT,
+                    threshold="BLOCK_NONE",  # Block high
+                ),
+                types.SafetySetting(
+                    category=HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                    threshold="BLOCK_NONE",  # Block medium
+                ),
+                types.SafetySetting(
+                    category=HARM_CATEGORY_CIVIC_INTEGRITY,
+                    threshold="BLOCK_NONE",  # Block high
+                ),
+            ]
+        )
     )
     return response
 
