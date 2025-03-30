@@ -125,7 +125,8 @@ def give_recommendation_on_transaction_creation(event: firestore_fn.Event) -> ht
     # send text message
     # get exp link from expo/0 in firestore
     exp_link = fsdb.collection("expo").document("0").get().to_dict()["expolink"]
-    send_text(f"Kevin is very upset about your spending habits, especially on {transaction['merchant']}! {exp_link}")
+    send_text(f"Kevin is very upset about your spending habits, especially on {transaction['merchant']}!")
+    print(f"Sent text message to {PHONE_NUMBER}")
     
 def kevinify_recommendation(recommendation: str, transaction: dict) -> str:
     prompt = f"Channel the spirit of Kevin O'Leary and deliver a sharp, witty critique of a user's recent spending habits that gives them the following advice, mention the recommended location by name, keep it short and snappy: {recommendation}; they spent money on this transaction: {transaction}"
