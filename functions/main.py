@@ -1,5 +1,5 @@
 # firebase function libraries
-from firebase_functions import https_fn
+from firebase_functions import https_fn, firestore_fn
 from firebase_admin import initialize_app, credentials
 
 # genai libraries
@@ -61,6 +61,19 @@ def add_transaction(req: https_fn.Request) -> https_fn.Response:
     }
     doc_ref = fsdb.collection("transactions").add(record)
     return https_fn.Response(f"Added {doc_ref.id} to transactions")
+
+
+# each time a new transaction is added to the "transactions" collection, give a recommendation
+@firestore_fn.on_document_created(document="transactions/{transaction_id}")
+def give_recommendation_on_transaction_creation(event: firestore_fn.Event) -> https_fn.Response:
+    transaction_id = event.params["transaction_id"]
+    doc = event.data.after.to_dict()
+    transaction = fsdb.collection("transactions").document(transaction_id).get().to_dict()
+    
+    recommendation = give_recommendation(transaction)
+    doc_ref = fsdb.collection("transactions").document(transaction_id)
+    doc_ref.update({"recommendation": recommendation})
+
 
 def give_recommendation(transaction: dict) -> dict:
     # first check if the item can be easily made at home
