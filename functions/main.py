@@ -7,7 +7,7 @@ from google import genai
 
 # general imports
 from flask import jsonify
-from prompts import get_critique_prompt
+from prompts import get_critique_prompt, get_chat_prompt
 
 import requests
 
@@ -51,6 +51,13 @@ def get_critique(req: https_fn.Request) -> https_fn.Response:
     return response.text
 
 @https_fn.on_request()
+def get_chat(req: https_fn.Request) -> https_fn.Response:
+    message = req.get_json()["message"]
+    prompt = get_chat_prompt(message)
+    response = get_completions(prompt)
+    return response.text
+
+@https_fn.on_request()
 def add_transaction(req: https_fn.Request) -> https_fn.Response:
     data = req.get_json()
     # i.e March 22, 2025 at 8:15:00 AM UTC-4
@@ -64,7 +71,6 @@ def add_transaction(req: https_fn.Request) -> https_fn.Response:
     }
     doc_ref = fsdb.collection("transactions").add(record)
     return https_fn.Response(f"Added {doc_ref.id} to transactions")
-
 
 # each time a new transaction is added to the "transactions" collection, give a recommendation
 @firestore_fn.on_document_created(document="transactions/{transaction_id}")
