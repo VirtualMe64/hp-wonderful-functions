@@ -24,5 +24,6 @@ for transaction in data['transactions']:
             } for product in transaction["products"]
         ]
     }
+    fs_transaction["location"] = [40.351978, -74.655198]
     key = transaction["id"]
     fsdb.collection("transactions").document(str(key)).set(fs_transaction)
