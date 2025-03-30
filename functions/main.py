@@ -76,15 +76,15 @@ def give_recommendation_on_transaction_creation(event: firestore_fn.Event) -> ht
     recommendation = give_recommendation(transaction)
     print(recommendation)
     # kevinify the recommendation using gemini
-    kevinified_recommendation = kevinify_recommendation(recommendation["recommendation"])
+    kevinified_recommendation = kevinify_recommendation(recommendation["recommendation"], transaction)
     if kevinified_recommendation:
         recommendation["recommendation"] = kevinified_recommendation
     print(recommendation)
     doc_ref = fsdb.collection("transactions").document(transaction_id)
     doc_ref.update({"recommendation": recommendation})
     
-def kevinify_recommendation(recommendation: str) -> str:
-    prompt = f"Channel the spirit of Kevin O'Leary and deliver a sharp, witty critique of a user's recent spending habits that gives them the following advice, mention the recommended location by name, keep it short and snappy: {recommendation}"
+def kevinify_recommendation(recommendation: str, transaction: dict) -> str:
+    prompt = f"Channel the spirit of Kevin O'Leary and deliver a sharp, witty critique of a user's recent spending habits that gives them the following advice, mention the recommended location by name, keep it short and snappy: {recommendation}; they spent money on this transaction: {transaction}"
     response = get_completions(prompt)
     print(response.text)
     return response.text
@@ -109,7 +109,7 @@ def give_recommendation(transaction: dict) -> dict:
     is_chain = response.text
     if "yes" in is_chain.lower():
         # check if item is store brand or not
-        prompt = f"Is the product {product_at_home} a store brand? (respond with only yes or no)"
+        prompt = f"Are the products {transaction['products']} a store brand? (respond with only yes or no)"
         response = get_completions(prompt)
         is_store_brand = response.text
         
