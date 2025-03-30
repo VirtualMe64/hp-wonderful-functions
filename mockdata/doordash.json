@@ -55,14 +55,14 @@
             "products": [
                 {
                     "external_id": "3000017887119990",
-                    "name": "Buffalo Maitake Sandwich",
+                    "name": "Ice Cream",
                     "description": "Breaded and fried mistake mushrooms tossed in buffalo sauce, with lettuce, tomato, mayonnaise, house blue cheese, and a side salad.",
                     "url": null,
                     "quantity": 1,
                     "eligibility": [],
                     "price": {
                         "sub_total": 19,
-                        "total": 19,
+                        "total": 1000,
                         "unit_price": 19
                     }
                 }
