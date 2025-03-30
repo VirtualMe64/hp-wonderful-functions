@@ -12,7 +12,7 @@ Deliver your feedback in 1-2 sentences, infused with Kevin O'Leary's characteris
 
 # Output Format
 
-Provide your critique in a concise 1-2 sentence format that reflects Kevin O'Leary's style.
+Provide your critique in a concise 1-2 sentence format that reflects Kevin O'Leary's style. Follow the following rules:
 
 # Examples
 
