@@ -1,16 +1,13 @@
 # firebase function libraries
 from firebase_functions import https_fn, firestore_fn
-from firebase_admin import initialize_app, credentials
+from firebase_admin import initialize_app, credentials, firestore
 
 # genai libraries
 from google import genai
 
-# The Firebase Admin SDK to access Cloud Firestore.
-from firebase_admin import initialize_app, firestore
-
 # general imports
 from flask import jsonify
-from datetime import datetime
+from prompts import get_critique_prompt
 
 import requests
 
@@ -25,6 +22,10 @@ def get_completions(prompt: str) -> str:
         contents=prompt,
     )
     return response
+
+@https_fn.on_request()
+def get_transactions(req: https_fn.Request) -> https_fn.Response:
+    return jsonify(_get_transactions())
 
 def _get_transactions():
     docs = fsdb.collection("transactions").stream()
@@ -44,8 +45,10 @@ def _get_transactions():
     return dicts
 
 @https_fn.on_request()
-def get_transactions(req: https_fn.Request) -> https_fn.Response:
-    return jsonify(_get_transactions())
+def get_critique(req: https_fn.Request) -> https_fn.Response:
+    prompt = get_critique_prompt(_get_transactions())
+    response = get_completions(prompt)
+    return response.text
 
 @https_fn.on_request()
 def add_transaction(req: https_fn.Request) -> https_fn.Response:
