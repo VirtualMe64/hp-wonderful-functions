@@ -74,8 +74,20 @@ def give_recommendation_on_transaction_creation(event: firestore_fn.Event) -> ht
     transaction = fsdb.collection("transactions").document(transaction_id).get().to_dict()
     
     recommendation = give_recommendation(transaction)
+    print(recommendation)
+    # kevinify the recommendation using gemini
+    kevinified_recommendation = kevinify_recommendation(recommendation["recommendation"])
+    if kevinified_recommendation:
+        recommendation["recommendation"] = kevinified_recommendation
+    print(recommendation)
     doc_ref = fsdb.collection("transactions").document(transaction_id)
     doc_ref.update({"recommendation": recommendation})
+    
+def kevinify_recommendation(recommendation: str) -> str:
+    prompt = f"Channel the spirit of Kevin O'Leary and deliver a sharp, witty critique of a user's recent spending habits that gives them the following advice, mention the recommended location by name, keep it short and snappy: {recommendation}"
+    response = get_completions(prompt)
+    print(response.text)
+    return response.text
 
 
 def give_recommendation(transaction: dict) -> dict:
@@ -180,18 +192,14 @@ def find_cheaper_store(transaction: dict) -> dict:
     merchant_category = response.text
     
     # get products
-    products = transaction["products"]
-    # get product categories
-    prompt = f"What is the category of the product {products} in one word? make a comma separated list of words"
-    response = get_completions(prompt)
-    product_categories = response.text
+    products = [product["name"] for product in transaction["products"]]
     
     # use maps api to find stores in the area that sell the products
     maps_api_key = "AIzaSyAD2DJZyMFGL9yWbYPSZWOqKVDzHVruh4M"
     maps_endpoint = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?" + \
         f"location={location[0]},{location[1]}" + \
         f"&radius=400" + \
-        f"&keyword={merchant_category},{product_categories}" + \
+        f"&keyword={merchant_category},{products}" + \
         f"&key={maps_api_key}"
     maps_endpoint = maps_endpoint.replace(" ", "")
     
